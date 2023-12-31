@@ -1,10 +1,6 @@
 import cv2
 import numpy as np
 from dataclasses import dataclass
-
-from dataclasses import dataclass
-import cv2
-import numpy as np
 import logging
 
 # Configure logging
@@ -19,12 +15,19 @@ class ShiTomasiAndORB:
     image: np.ndarray = None
     corners: np.ndarray = None
 
+    keypoints: np.ndarray = None
+    descriptors: np.ndarray = None
+
     def set_image(self, img: np.ndarray):
         if img is None or not isinstance(img, np.ndarray):
             raise ValueError("Invalid image input. Must be a non-null numpy.ndarray.")
         self.image = img
         logging.info("Image set successfully.")
 
+    def run(self):
+        self.shi_tomasi_corner_detect()
+        self.orb_descriptor()
+        
     def shi_tomasi_corner_detect(self) -> np.ndarray:
         if self.image is None:
             raise ValueError("Image not set. Use set_image() method to set the image first.")
@@ -47,27 +50,23 @@ class ShiTomasiAndORB:
             orb = cv2.ORB_create()
             keypoints, descriptors = orb.compute(self.image, keypoints)
             logging.info("ORB descriptor computation completed.")
+            self.keypoints, self.descriptors = keypoints, descriptors
             return keypoints, descriptors
         except Exception as e:
             logging.error(f"Error in ORB descriptor computation: {e}")
             raise
-
-
-a = ShiTomasiAndORB()
-
-
-# Read the image
-image = cv2.imread(r'DS\beethoven_data\images\0000.ppm')
-
-a.set_image(image)
-c = a.shi_tomasi_corner_detect()
-k,d = a.orb_descriptor()
-
-
-# Draw the keypoints on the image
-image_with_keypoints = cv2.drawKeypoints(image, k, None, color=(0, 255, 0), flags=0)
-
-# Display the image with keypoints
-cv2.imshow('Keypoints and Descriptors', image_with_keypoints)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    
+    def draw_keypoints(self)-> np.ndarray:
+        if self.keypoints is None:
+            raise ValueError("Keypoints not set. Use shi_tomasi_corner_detect() then orb_descriptor methods to detect corners make the keypoints and descriptors first.")
+        
+        if self.image is None:
+            raise ValueError("Image not set. Use set_image() method to set the image first.")
+        
+        try:
+            image_with_keypoints = cv2.drawKeypoints(self.image, self.keypoints, None, color=(0, 255, 0), flags=0)
+            logging.info(f"Keypoints has drawn successfully.")
+            return image_with_keypoints
+        except Exception as e:
+            logging.error(f"Error in drawing keypoints: {e}")
+            raise
