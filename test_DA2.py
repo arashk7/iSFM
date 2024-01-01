@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from dataclasses import dataclass
 import logging
-from ak_DataAssociation import ShiTomasiAndORB
+from ak_DataAssociation import ShiTomasiAndORB, BruteForceMatcher
 
 
 # this is your dataset path
@@ -11,6 +11,7 @@ ds_path = r'DS\beethoven_data\images'
 
 sao = {}
 
+bf = BruteForceMatcher()
 
 # Loop through each file in the directory
 for index, filename in enumerate(os.listdir(ds_path)):
@@ -31,9 +32,11 @@ for index, filename in enumerate(os.listdir(ds_path)):
         
         sao[index] = a
 
+        image_with_keypoints = a.draw_keypoints()
+
         if index > 0:
             diff = np.int64(a.descriptors[0]) - np.int64(sao[index-1].descriptors[0])
-            print(diff)
+            
 
         
             # FLANN parameters for feature matching
@@ -45,25 +48,52 @@ for index, filename in enumerate(os.listdir(ds_path)):
 
             descriptors1 = sao[index-1].descriptors
             descriptors2 = a.descriptors
-            if descriptors1 is None or descriptors2 is None:
-                raise ValueError("One of the descriptor sets is empty.")
-            if descriptors1.dtype != np.uint8 or descriptors2.dtype != np.uint8:
-                raise ValueError("Descriptors data type must be uint8.")
-            if len(descriptors1) == 0 or len(descriptors2) == 0:
-                raise ValueError("One of the descriptor sets is empty.")
 
+            keypoints1 = sao[index-1].keypoints
+            keypoints2 = a.keypoints
+            
+            #print(keypoints1)
             # Brute-Force Matcher
-            bf = cv2.BFMatcher(cv2.NORM_HAMMING)
-            matches = bf.knnMatch(descriptors1,descriptors2, k=2)
+            
+            matches = bf.match(descriptors1,descriptors2)
+
 
             # Filter for good matches using Lowe's ratio test
             good_matches = []
+            rate = 1
             for m, n in matches:
-                if m.distance < 0.7 * n.distance:
+                if m.distance < rate * n.distance:
                     good_matches.append(m)
-                    print('.')
+                    
+            if len(good_matches)>8:
+                pts1 = np.float32([keypoints1[m.queryIdx].pt for m in good_matches])
+                pts2 = np.float32([keypoints2[m.trainIdx].pt for m in good_matches])
 
-        image_with_keypoints = a.draw_keypoints()
+                F, mask = cv2.findFundamentalMat(pts1, pts2, cv2.FM_RANSAC)
+
+                if F is None or F.shape != (3, 3):
+                    print("Error in computing the fundamental matrix")
+                else:
+                    print("Fundamental Matrix:\n", F)
+             
+
+            # Filter the outlier matches
+            inlier_pts1 = pts1[mask.ravel() == 1]
+            inlier_pts2 = pts2[mask.ravel() == 1]
+
+            inlier_keypoints1 = [cv2.KeyPoint(x=p[0], y=p[1], size=20) for p in inlier_pts1]
+            inlier_keypoints2 = [cv2.KeyPoint(x=p[0], y=p[1], size=20) for p in inlier_pts2]
+            print('done')
+
+            for pt1, pt2 in zip(inlier_pts1, inlier_pts2):
+                x = np.array([pt1[0], pt1[1], 1])
+                x_prime = np.array([pt2[0], pt2[1], 1])
+                error = np.dot(np.dot(x_prime.T, F), x)
+                print("Epipolar Constraint Error:", error)
+
+            image_with_keypoints = cv2.drawKeypoints(image_with_keypoints, inlier_keypoints2, None, color=(255, 255, 0), flags=0)
+
+        
 
         # Display the image with keypoints
         cv2.imshow('Keypoints and Descriptors', image_with_keypoints)
