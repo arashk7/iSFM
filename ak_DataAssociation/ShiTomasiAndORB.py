@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 @dataclass
 class ShiTomasiAndORB:
-    max_corners: int = 500
+    max_corners: int = 800
     quality_level: float = 0.01
     min_distance: int = 10
 
@@ -27,7 +27,7 @@ class ShiTomasiAndORB:
     def run(self):
         self.shi_tomasi_corner_detect()
         self.orb_descriptor()
-        
+
     def shi_tomasi_corner_detect(self) -> np.ndarray:
         if self.image is None:
             raise ValueError("Image not set. Use set_image() method to set the image first.")
