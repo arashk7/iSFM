@@ -93,7 +93,7 @@ for index, filename in enumerate(os.listdir(ds_path)):
 
             image_with_keypoints = cv2.drawKeypoints(image_with_keypoints, inlier_keypoints2, None, color=(255, 255, 0), flags=0)
 
-            # E = np.dot(np.dot(K.T, F), K)
+            # E = np.dot(np.dot(K.T, F), K) 
             
 
         # Display the image with keypoints
