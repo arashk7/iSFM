@@ -5,11 +5,15 @@ from dataclasses import dataclass
 import logging
 from ak_DataAssociation import ShiTomasiAndORB, BruteForceMatcher
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
 
 # this is your dataset path
 ds_path = r'DS\diamond_walk\diamond_walk\cam0\data'
+# ds_path = r'DS\deer_robot\cam0\data'
 K=[600,   0,   320,
-    0,     600, 240,
+    0,     600, 240,                 
     0,     0,   1]
 K=np.reshape(K,(3,3))
 
@@ -32,10 +36,56 @@ def recoverpos(E):
 
     # Compute the translation vector t
     t = U[:, 2]
-
+    print(t.shape)
     # Ensure that t is a unit vector
     t /= np.linalg.norm(t)
     return R,t
+
+def draw_3d_plot():
+    global absolute_positions
+    # Define the origin
+    origin = np.array([0, 0, 0])
+
+    # Define the camera position
+    cam_pos = absolute_positions
+    l = len(absolute_positions)
+    # Extract x, y, and z coordinates from the list of camera positions
+    x_coords = np.array([float(pos[0]) for pos in cam_pos])
+    y_coords = np.array([float(pos[1]) for pos in cam_pos])
+    z_coords = np.array([float(pos[2]) for pos in cam_pos])
+    # Create a 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    print(len(x_coords))
+    print(len(y_coords))
+    print(len(z_coords))
+    # Plot the camera position
+    ax.plot(x_coords, y_coords, z_coords, marker='o', linestyle='-', color='b', label='Camera Trajectory')
+
+    # Plot camera orientation vectors
+    # ax.quiver(*origin, *x_axis, color='r', label='X-Axis')
+    # ax.quiver(*origin, *y_axis, color='g', label='Y-Axis')
+    # ax.quiver(*origin, *z_axis, color='b', label='Z-Axis')
+
+   
+
+    # Add labels and legend
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('Camera Trajectory')
+    ax.legend()
+
+    # Show the plot
+    plt.show()
+
+
+cam_pos = []
+
+initial_position = np.array([0.0, 0.0, 0.0])
+absolute_positions = [initial_position]
+
 # Loop through each file in the directory
 for index, filename in enumerate(os.listdir(ds_path)):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.ppm')):
@@ -120,16 +170,31 @@ for index, filename in enumerate(os.listdir(ds_path)):
             
 
             _, R, t, _ = cv2.recoverPose(E, inlier_pts1, inlier_pts2, K)
-            R1,t1 = recoverpos(E)
+            # R1,t1 = recoverpos(E)
+            # t1 = np.reshape(t1,(3,1))
+            # print(R)
+            # print(R1)
+            # print(t)
+            # print(t1)
             
-            print(R)
-            print(R1)
-            print(t)
-            print(t1)
+            prev_position = absolute_positions[-1]
+            prev_position = np.reshape(prev_position,(3,1))
+            absolute_position = R@prev_position + t
+            print(prev_position.shape)
+            absolute_positions.append(np.array(absolute_position))
+            print("absolute position", len(absolute_positions))
             
+            
+
         # Display the image with keypoints
         cv2.imshow('Keypoints and Descriptors', image_with_keypoints)
-        cv2.waitKey(0)
+        k = cv2.waitKey(0)
+        if k == 27:
+            exit(0)
+        if k==13:
+            draw_3d_plot()
+        
+
 
 
 cv2.destroyAllWindows()
