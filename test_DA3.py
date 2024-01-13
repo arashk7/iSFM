@@ -3,13 +3,15 @@ import cv2
 import numpy as np
 from dataclasses import dataclass
 import logging
-from ak_DataAssociation import ShiTomasiAndORB, BruteForceMatcher
+from ak_DataAssociation import ShiTomasiAndORB
+from ak_StructureFromMotion import BruteForceMatcher
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
 # this is your dataset path
+# ds_path = r'DS\beethoven_data\images'
 ds_path = r'DS\diamond_walk\diamond_walk\cam0\data'
 # ds_path = r'DS\deer_robot\cam0\data'
 K=[600,   0,   320,
@@ -86,6 +88,8 @@ cam_pos = []
 initial_position = np.array([0.0, 0.0, 0.0])
 absolute_positions = [initial_position]
 
+R_0 = np.identity(3)
+t_0 = np.zeros((3,1))
 # Loop through each file in the directory
 for index, filename in enumerate(os.listdir(ds_path)):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.ppm')):
@@ -108,16 +112,7 @@ for index, filename in enumerate(os.listdir(ds_path)):
         image_with_keypoints = a.draw_keypoints()
 
         if index > 0:
-            diff = np.int64(a.descriptors[0]) - np.int64(sao[index-1].descriptors[0])
             
-
-        
-            # FLANN parameters for feature matching
-            # FLANN_INDEX_KDTREE = 1
-            # index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5) 
-            # search_params = dict(checks=50)
-
-            # flann = cv2.FlannBasedMatcher(index_params, search_params)
 
             descriptors1 = sao[index-1].descriptors
             descriptors2 = a.descriptors
@@ -133,7 +128,7 @@ for index, filename in enumerate(os.listdir(ds_path)):
 
             # Filter for good matches using Lowe's ratio test
             good_matches = []
-            rate = 1
+            rate = 0.8
             for m, n in matches:
                 if m.distance < rate * n.distance:
                     good_matches.append(m)
@@ -154,7 +149,7 @@ for index, filename in enumerate(os.listdir(ds_path)):
             inlier_pts1 = pts1[mask.ravel() == 1]
             inlier_pts2 = pts2[mask.ravel() == 1]
 
-            inlier_keypoints1 = [cv2.KeyPoint(x=p[0], y=p[1], size=20) for p in inlier_pts1]
+            # inlier_keypoints1 = [cv2.KeyPoint(x=p[0], y=p[1], size=20) for p in inlier_pts1]
             inlier_keypoints2 = [cv2.KeyPoint(x=p[0], y=p[1], size=20) for p in inlier_pts2]
             # print('done')
 
@@ -172,18 +167,24 @@ for index, filename in enumerate(os.listdir(ds_path)):
             _, R, t, _ = cv2.recoverPose(E, inlier_pts1, inlier_pts2, K)
             # R1,t1 = recoverpos(E)
             # t1 = np.reshape(t1,(3,1))
-            # print(R)
-            # print(R1)
-            # print(t)
-            # print(t1)
+            
             
             prev_position = absolute_positions[-1]
             prev_position = np.reshape(prev_position,(3,1))
             absolute_position = R@prev_position + t
-            print(prev_position.shape)
-            absolute_positions.append(np.array(absolute_position))
-            print("absolute position", len(absolute_positions))
             
+            absolute_positions.append(np.array(absolute_position))
+            
+            ''' Triangulation'''
+            P1 = np.dot(K, np.hstack((np.identity(3), np.zeros((3, 1))))) # Projection matrix for the first camera
+            P2 = np.dot(K, np.hstack((R, t)))      
+
+            X = cv2.triangulatePoints(P1,
+                            P2,
+                            inlier_pts1[:2],
+                            inlier_pts2[:2])
+            X_cartesian = X[:3] / X[3]
+            print(X_cartesian)
             
 
         # Display the image with keypoints
