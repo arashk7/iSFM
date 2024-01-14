@@ -82,14 +82,41 @@ def draw_3d_plot():
     # Show the plot
     plt.show()
 
+def draw_3d_plot_points(absolute_points):
+    points = np.array(absolute_points) # Replace with your array of 3D points
+
+    # Extracting x, y, z coordinates for easy plotting
+    x = points[:, 0]
+    y = points[:, 1]
+    z = points[:, 2]
+
+    # Create a new figure for 3D plotting
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Scatter plot
+    ax.scatter(x, y, z)
+
+    # Labeling
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    ax.set_title('3D Scatter Plot of Points')
+
+    # Show the plot
+    plt.show()
 
 cam_pos = []
 
 initial_position = np.array([0.0, 0.0, 0.0])
 absolute_positions = [initial_position]
 
-R_0 = np.identity(3)
-t_0 = np.zeros((3,1))
+
+
+R_abs = np.identity(3)  # Absolute rotation (initially identity)
+t_abs = np.zeros((3, 1))  # Absolute translation (initially zero)
+
+
 # Loop through each file in the directory
 for index, filename in enumerate(os.listdir(ds_path)):
     if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.gif', '.ppm')):
@@ -128,7 +155,7 @@ for index, filename in enumerate(os.listdir(ds_path)):
 
             # Filter for good matches using Lowe's ratio test
             good_matches = []
-            rate = 0.8
+            rate = 1
             for m, n in matches:
                 if m.distance < rate * n.distance:
                     good_matches.append(m)
@@ -142,7 +169,8 @@ for index, filename in enumerate(os.listdir(ds_path)):
                 if F is None or F.shape != (3, 3):
                     print("Error in computing the fundamental matrix")
                 else:
-                    print("Fundamental Matrix:\n", F)
+                    pass
+                    # print("Fundamental Matrix:\n", F)
              
 
             # Filter the outlier matches
@@ -167,25 +195,43 @@ for index, filename in enumerate(os.listdir(ds_path)):
             _, R, t, _ = cv2.recoverPose(E, inlier_pts1, inlier_pts2, K)
             # R1,t1 = recoverpos(E)
             # t1 = np.reshape(t1,(3,1))
-            
+            t_abs += R_abs @ t
+            R_abs = R_abs @ R
             
             prev_position = absolute_positions[-1]
             prev_position = np.reshape(prev_position,(3,1))
             absolute_position = R@prev_position + t
             
+            # distance = np.linalg.norm(absolute_position - absolute_positions[-1])
+            # print(distance)
+            # if distance<2:
+
             absolute_positions.append(np.array(absolute_position))
-            
+
+                        
             ''' Triangulation'''
             P1 = np.dot(K, np.hstack((np.identity(3), np.zeros((3, 1))))) # Projection matrix for the first camera
             P2 = np.dot(K, np.hstack((R, t)))      
 
+            print(inlier_pts1.shape)
             X = cv2.triangulatePoints(P1,
                             P2,
-                            inlier_pts1[:2],
-                            inlier_pts2[:2])
-            X_cartesian = X[:3] / X[3]
-            print(X_cartesian)
+                            inlier_pts1.T,
+                            inlier_pts2.T)
+            # X_cartesian = (X[:3] / X[3]).T
+            homog_points = X.transpose()
+            euclid_points = cv2.convertPointsFromHomogeneous(homog_points)
+            # print(euclid_points)
             
+
+            absolute_points = []
+            for point in euclid_points.reshape(-1, 3):
+                absolute_point = R_abs @ point.T + t_abs.flatten()
+                absolute_points.append(absolute_point)
+
+            absolute_points = np.array(absolute_points)
+            # print(absolute_points)
+            # draw_3d_plot_points(absolute_points)
 
         # Display the image with keypoints
         cv2.imshow('Keypoints and Descriptors', image_with_keypoints)
