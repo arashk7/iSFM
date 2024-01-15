@@ -3,7 +3,8 @@ import cv2
 import numpy as np
 from dataclasses import dataclass
 import logging
-from ak_DataAssociation import ShiTomasiAndORB, BruteForceMatcher
+from ak_DataAssociation import ShiTomasiAndORB
+from ak_StructureFromMotion import BruteForceMatcher
 
 
 # this is your dataset path

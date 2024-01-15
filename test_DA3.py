@@ -45,6 +45,7 @@ def recoverpos(E):
 
 def draw_3d_plot():
     global absolute_positions
+    global list_abs_points
     # Define the origin
     origin = np.array([0, 0, 0])
 
@@ -70,7 +71,21 @@ def draw_3d_plot():
     # ax.quiver(*origin, *y_axis, color='g', label='Y-Axis')
     # ax.quiver(*origin, *z_axis, color='b', label='Z-Axis')
 
-   
+    feature_x_0 = np.array([[0.0]])
+    feature_y_0 = np.array([[0.0]])
+    feature_z_0 = np.array([[0.0]])
+    for feature_point in list_abs_points:
+    # feature_point = list_abs_points[0]
+        feature_x = np.array([float(pos[0]) for pos in feature_point])
+        feature_y = np.array([float(pos[1]) for pos in feature_point])
+        feature_z = np.array([float(pos[2]) for pos in feature_point])
+        
+        feature_x_0 = np.append(feature_x_0,feature_x)
+        feature_y_0 = np.append(feature_y_0,feature_y)
+        feature_z_0 = np.append(feature_z_0,feature_z)
+        
+    # ax.scatter(feature_x_0, feature_y_0, feature_z_0, marker='.', color='r', label='Feature Points') 
+    
 
     # Add labels and legend
     ax.set_xlabel('X')
@@ -112,7 +127,7 @@ initial_position = np.array([0.0, 0.0, 0.0])
 absolute_positions = [initial_position]
 
 
-
+list_abs_points = []
 R_abs = np.identity(3)  # Absolute rotation (initially identity)
 t_abs = np.zeros((3, 1))  # Absolute translation (initially zero)
 
@@ -230,6 +245,7 @@ for index, filename in enumerate(os.listdir(ds_path)):
                 absolute_points.append(absolute_point)
 
             absolute_points = np.array(absolute_points)
+            list_abs_points.append(absolute_points)
             # print(absolute_points)
             # draw_3d_plot_points(absolute_points)
 
